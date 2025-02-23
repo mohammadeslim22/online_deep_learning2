@@ -142,7 +142,7 @@ class MLPClassifierDeep(nn.Module):
 
 class MLPClassifierDeepResidual(nn.Module):
 
-    class ResidualBlock(nn.Module):
+    class MyResidualBlock(nn.Module):
         def __init__(self, dim):
             super().__init__()
             self.converter = nn.Linear(dim, dim)
@@ -180,9 +180,9 @@ class MLPClassifierDeepResidual(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(h*w*3, 128),
             nn.ReLU(),
-            self.ResidualBlock(128),
-            self.ResidualBlock(128),
-            self.ResidualBlock(128),
+            self.MyResidualBlock(128),
+            self.MyResidualBlock(128),
+            self.MyResidualBlock(128),
             nn.Linear(128, num_classes)
         )
 
