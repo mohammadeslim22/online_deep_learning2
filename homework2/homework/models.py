@@ -13,9 +13,7 @@ import torch.nn as nn
 
 
 class ClassificationLoss(nn.Module):
-    @staticmethod
-    def forward(logits: torch.Tensor, target: torch.LongTensor) -> torch.Tensor:
-
+    def forward( logits: torch.Tensor, target: torch.LongTensor) -> torch.Tensor:
         """
         Multi-class classification loss
         Hint: simple one-liner
@@ -28,7 +26,6 @@ class ClassificationLoss(nn.Module):
             tensor, scalar loss
         """
         return torch.nn.functional.cross_entropy(logits, target)
-
 
 class LinearClassifier(nn.Module):
     def __init__(
@@ -45,11 +42,10 @@ class LinearClassifier(nn.Module):
         """
         super().__init__()
 
-        # Flatten layer: input size is 3 * h * w (3 channels of size h x w)
-        self.flatten = nn.Flatten()
-
-        # Linear layer: input size is 3 * h * w, output size is num_classes
-        self.fc = nn.Linear(3 * h * w, num_classes)
+        # flatten the input image
+        self.flatten = torch.nn.Flatten()
+        # linear layer
+        self.linear = torch.nn.Linear(h*w*3, num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -59,12 +55,8 @@ class LinearClassifier(nn.Module):
         Returns:
             tensor (b, num_classes) logits
         """
-        x = self.flatten(x)
 
-        # Pass through the fully connected layer
-        x = self.fc(x)
-
-        return x
+        return self.linear(self.flatten(x))
 
 
 class MLPClassifier(nn.Module):
@@ -84,19 +76,12 @@ class MLPClassifier(nn.Module):
         """
         super().__init__()
 
-        self.flatten = nn.Flatten()
-
-        # Set hidden size to a fixed number (e.g., 256 neurons in the hidden layer)
-        hidden_size = 256  # You can adjust this value as needed
-
-        # Hidden layer: input size is 3 * h * w, output size is hidden_size
-        self.hidden = nn.Linear(3 * h * w, hidden_size)
-
-        # Output layer: maps hidden_size to num_classes
-        self.output = nn.Linear(hidden_size, num_classes)
-
-        # Activation function for the hidden layer
-        self.relu = nn.ReLU()
+        self.model = nn.Sequential(
+            torch.nn.Flatten(),
+            nn.Linear(h*w*3, 128),
+            nn.ReLU(),
+            nn.Linear(128, num_classes)
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -106,15 +91,8 @@ class MLPClassifier(nn.Module):
         Returns:
             tensor (b, num_classes) logits
         """
-        x = self.flatten(x)
+        return self.model(x)
 
-        # Pass through the hidden layer and apply ReLU activation
-        x = self.hidden(x)
-        x = self.relu(x)
-
-        # Pass through the output layer to get logits
-        x = self.output(x)
-        return x
 
 class MLPClassifierDeep(nn.Module):
     def __init__(
@@ -137,29 +115,19 @@ class MLPClassifierDeep(nn.Module):
         """
         super().__init__()
 
-        self.flatten = nn.Flatten()
-
-        # Fixed hidden layer size and number of hidden layers
-        hidden_dim = 256  # Size of each hidden layer
-        num_layers = 3  # Fixed number of hidden layers
-
-        # List to hold all layers
-        layers = []
-
-        # Input size to the first hidden layer
-        input_dim = 3 * h * w
-
-        # Create hidden layers
-        for _ in range(num_layers):
-            layers.append(nn.Linear(input_dim, hidden_dim))
-            layers.append(nn.ReLU())  # Apply ReLU activation after each hidden layer
-            input_dim = hidden_dim  # After each hidden layer, the input size for the next is hidden_dim
-
-        # Output layer: maps hidden_dim to num_classes
-        layers.append(nn.Linear(hidden_dim, num_classes))
-
-        # Combine all layers into a sequential module
-        self.model = nn.Sequential(*layers)
+        # model with multiple hidden layers
+        self.model = nn.Sequential(
+            torch.nn.Flatten(),
+            nn.Linear(h*w*3, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Linear(16, num_classes)
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -169,12 +137,25 @@ class MLPClassifierDeep(nn.Module):
         Returns:
             tensor (b, num_classes) logits
         """
-        x = self.flatten(x)
-        x = self.model(x)
-        return x
+        return self.model(x)
 
 
 class MLPClassifierDeepResidual(nn.Module):
+
+    class ResidualBlock(nn.Module):
+        def __init__(self, dim):
+            super().__init__()
+            self.converter = nn.Linear(dim, dim)
+            self.model = nn.Sequential(
+                nn.Linear(dim, dim),
+                nn.ReLU(),
+                nn.Linear(dim, dim),
+                nn.ReLU()
+            )
+
+        def forward(self, x):
+            return self.model(x) + self.converter(x)
+
     def __init__(
         self,
         h: int = 64,
@@ -193,30 +174,17 @@ class MLPClassifierDeepResidual(nn.Module):
         """
         super().__init__()
 
-        # Flatten the input image (3 * h * w)
-        self.flatten = nn.Flatten()
+        self.input_flatten_layer = torch.nn.Flatten()
 
-        # Fixed hidden layer size and number of hidden layers
-        hidden_dim = 256  # Size of each hidden layer
-        num_layers = 3  # Fixed number of hidden layers
-
-        # List to hold all layers
-        layers = []
-
-        # Input size to the first hidden layer
-        input_dim = 3 * h * w
-
-        # Create residual layers
-        for _ in range(num_layers):
-            layers.append(nn.Linear(input_dim, hidden_dim))
-            layers.append(nn.ReLU())  # Apply ReLU activation after each layer
-            input_dim = hidden_dim  # After each layer, the input size for the next is hidden_dim
-
-        # Output layer: maps hidden_dim to num_classes
-        layers.append(nn.Linear(hidden_dim, num_classes))
-
-        # Combine all layers into a sequential module
-        self.model = nn.Sequential(*layers)
+        # construct model with residual blocks
+        self.model = nn.Sequential(
+            nn.Linear(h*w*3, 128),
+            nn.ReLU(),
+            self.ResidualBlock(128),
+            self.ResidualBlock(128),
+            self.ResidualBlock(128),
+            nn.Linear(128, num_classes)
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -226,19 +194,7 @@ class MLPClassifierDeepResidual(nn.Module):
         Returns:
             tensor (b, num_classes) logits
         """
-        # Flatten the input and pass it through the layers
-        x = self.flatten(x)
-
-        # Apply the layers sequentially and include residual connections
-        residual = x
-        for layer in self.model:
-            x = layer(x)
-            # Add the residual connection (skip connection)
-            if isinstance(layer, nn.ReLU) or isinstance(layer, nn.Linear):
-                x = x + residual
-                residual = x
-
-        return x
+        return self.model(self.input_flatten_layer(x))
 
 
 model_factory = {
@@ -279,7 +235,7 @@ def load_model(model_name: str, with_weights: bool = False, **model_kwargs):
         model_path = Path(__file__).resolve().parent / f"{model_name}.th"
         assert model_path.exists(), f"{model_path.name} not found"
         try:
-            r.load_state_dict(torch.load(model_path, map_location="gpu"))
+            r.load_state_dict(torch.load(model_path, map_location="cpu"))
         except RuntimeError as e:
             raise AssertionError(
                 f"Failed to load {model_path.name}, make sure the default model arguments are set correctly"
