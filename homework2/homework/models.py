@@ -13,7 +13,7 @@ import torch.nn as nn
 
 
 class ClassificationLoss(nn.Module):
-    def forward( logits: torch.Tensor, target: torch.LongTensor) -> torch.Tensor:
+    def forward(self, logits: torch.Tensor, target: torch.LongTensor) -> torch.Tensor:
         """
         Multi-class classification loss
         Hint: simple one-liner
