@@ -44,7 +44,7 @@ def train(
     # create loss function and optimizer
     loss_func = ClassificationLoss()
     # optimizer = ...
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    my_optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     global_step = 0
     metrics = {"train_loss": [], "train_acc": [], "val_loss": [], "val_acc": []}
@@ -62,16 +62,16 @@ def train(
 
             # Forward pass
             output = model(img)
-            loss = loss_func(output, label)
+            my_loss = loss_func(output, label)
 
             # Backward pass and optimization
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
+            my_loss.backward()
+            my_optimizer.step()
+            my_optimizer.zero_grad()
 
             # Calculate and store training accuracy
             train_acc = compute_accuracy(output, label)
-            metrics["train_loss"].append(loss.item())
+            metrics["train_loss"].append(my_loss.item())
             metrics["train_acc"].append(train_acc)
 
             global_step += 1
@@ -85,28 +85,28 @@ def train(
 
                 # compute validation accuracy
                 output = model(img)
-                val_loss = loss_func(output, label)
-                val_acc = compute_accuracy(output, label)
-                metrics["val_loss"].append(val_loss.item())
-                metrics["val_acc"].append(val_acc)
+                validation_loss = loss_func(output, label)
+                validation_accuracy = compute_accuracy(output, label)
+                metrics["val_loss"].append(validation_loss.item())
+                metrics["val_acc"].append(validation_accuracy)
 
         # log average train and val accuracy to tensorboard
         epoch_train_loss = torch.as_tensor(metrics["train_loss"]).mean()
         epoch_train_acc = torch.as_tensor(metrics["train_acc"]).mean()
-        epoch_val_loss = torch.as_tensor(metrics["val_loss"]).mean()
-        epoch_val_acc = torch.as_tensor(metrics["val_acc"]).mean()
+        epoch_validation_loss = torch.as_tensor(metrics["val_loss"]).mean()
+        epoch_validation_accuracy = torch.as_tensor(metrics["val_acc"]).mean()
 
         logger.add_scalar("Loss/train", epoch_train_loss, global_step)
         logger.add_scalar("Accuracy/train", epoch_train_acc, global_step)
-        logger.add_scalar("Loss/val", epoch_val_loss, global_step)
-        logger.add_scalar("Accuracy/val", epoch_val_acc, global_step)
+        logger.add_scalar("Loss/val", epoch_validation_loss, global_step)
+        logger.add_scalar("Accuracy/val", epoch_validation_accuracy, global_step)
 
         # print on first, last, every 10th epoch
         if epoch == 0 or epoch == num_epoch - 1 or (epoch + 1) % 10 == 0:
             print(
                 f"Epoch {epoch + 1:2d} / {num_epoch:2d}: "
                 f"train_acc={epoch_train_acc:.4f} "
-                f"val_acc={epoch_val_acc:.4f}"
+                f"val_acc={epoch_validation_accuracy:.4f}"
             )
 
     # save and overwrite the model in the root directory for grading
