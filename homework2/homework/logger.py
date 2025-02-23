@@ -21,35 +21,36 @@ def test_logging(logger: tb.SummaryWriter):
     # strongly simplified training loop
     global_step = 0
     for epoch in range(10):
-        metrics = {"train_acc": [], "val_acc": []}
+        my_metrics = {"train_acc": [], "val_acc": []}
 
         # example training loop
         torch.manual_seed(epoch)
         for iteration in range(20):
-            dummy_train_loss = 0.9 ** (epoch + iteration / 20.0)
-            dummy_train_accuracy = epoch / 10.0 + torch.randn(10)
+            temp_train_loss = 0.9 ** (epoch + iteration / 20.0)
+            temp_train_accuracy = epoch / 10.0 + torch.randn(10)
 
-            # log train_loss
-            logger.add_scalar("train_loss", dummy_train_loss, global_step)
-            # save additional metrics to be averaged
-            metrics["train_acc"].append(dummy_train_accuracy.mean().item())
+            # log the training loss
+            logger.add_scalar("train_loss", temp_train_loss, global_step)
+            # save the additional metrics to be averaged
+            my_metrics["train_acc"].append(temp_train_accuracy.mean().item())
 
+            #increment the global step!
             global_step += 1
 
-        # log average train_accuracy
-        avg_train_accuracy = sum(metrics["train_acc"]) / len(metrics["train_acc"])
+        # log the average training accuracy
+        avg_train_accuracy = sum(my_metrics["train_acc"]) / len(my_metrics["train_acc"])
         logger.add_scalar("train_accuracy", avg_train_accuracy, global_step)
 
         # example validation loop
         torch.manual_seed(epoch)
-        for _ in range(10):
-            dummy_validation_accuracy = epoch / 10.0 + torch.randn(10)
+        for t in range(10):
+            temp_validation_accuracy = epoch / 10.0 + torch.randn(10)
 
-            # save additional metrics to be averaged
-            metrics["val_acc"].append(dummy_validation_accuracy.mean().item())
+            # save the additional metrics to be averaged
+            my_metrics["val_acc"].append(temp_validation_accuracy.mean().item())
 
-        # log average val_accuracy
-        avg_val_accuracy = sum(metrics["val_acc"]) / len(metrics["val_acc"])
+        # log the average validation accuracy
+        avg_val_accuracy = sum(my_metrics["val_acc"]) / len(my_metrics["val_acc"])
         logger.add_scalar("val_accuracy", avg_val_accuracy, global_step)
 
 
